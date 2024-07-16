@@ -17,7 +17,7 @@ const ProtectedRoute = ({ children }) => {
     const refreshToken = localStorage.getItem(REFRESH_TOKEN);
     // try to use the refreshToken to get new ACCESS_TOKEN
     try {
-      const res = await api.get("/api/token/refresh/", {
+      const res = await api.post("/api/token/refresh/", {
         refresh: refreshToken,
       });
       // if refreshToken is still valid, then set new ACCESS_TOKEN
@@ -28,7 +28,7 @@ const ProtectedRoute = ({ children }) => {
         setIsAuthenticated(false);
       }
     } catch (error) {
-      alert(error);
+      console.log(error);
       setIsAuthenticated(false);
     }
   };
@@ -42,9 +42,9 @@ const ProtectedRoute = ({ children }) => {
     }
 
     // Checking ACCESS_TOKEN expiration
-    decoded = jwtDecode(token);
-    tokenExp = decoded.exp;
-    current = Date.now() / 1000;
+    const decoded = jwtDecode(token);
+    const tokenExp = decoded.exp;
+    const current = Date.now() / 1000;
 
     // if token expired, must check and run refreshToken
     if (current > tokenExp) {
