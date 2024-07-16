@@ -3,6 +3,7 @@ import api from "../api";
 import { ACCESS_TOKEN, REFRESH_TOKEN } from "../constants";
 import { useNavigate, Link } from "react-router-dom";
 import "../styles/Form.css";
+import LoadingIndicator from "./LoadingIndicator";
 
 const Form = ({ route, method }) => {
   const [username, setUsername] = useState("");
@@ -16,7 +17,7 @@ const Form = ({ route, method }) => {
     setLoading(true);
     e.preventDefault();
     try {
-      const res = await api.get(route, {
+      const res = await api.post(route, {
         username,
         password,
       });
@@ -29,14 +30,18 @@ const Form = ({ route, method }) => {
         navigate("/login");
       }
     } catch (error) {
-      console.log(error);
+      console.log("Current route: ", route);
+      console.error(
+        "Error:",
+        error.response ? error.response.data : error.message
+      );
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <form onChange={handleSubmit} className="form-container">
+    <form onSubmit={handleSubmit} className="form-container">
       <h1>{formName}</h1>
       <input
         className="form-input"
@@ -52,6 +57,7 @@ const Form = ({ route, method }) => {
         onChange={(e) => setPassword(e.target.value)}
         placeholder="Password"
       />
+      {loading && <LoadingIndicator />}
       <button className="form-button" type="submit">
         {formName}
       </button>
