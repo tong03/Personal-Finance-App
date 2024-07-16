@@ -23,27 +23,12 @@ const Form = ({ route, method }) => {
         password,
       });
       if (method == "login") {
-        console.log("Got inside conditional");
-        // console.log("ACCESS data: ", res.data.access);
-        // console.log("REFRESH data: ", res.data.refresh);
-        // localStorage.setItem(ACCESS_TOKEN, res.data.access);
-        // localStorage.setItem(REFRESH_TOKEN, res.data.refresh);
-
-        try {
-          localStorage.setItem(ACCESS_TOKEN, res.data.access);
-          localStorage.setItem(REFRESH_TOKEN, res.data.refresh);
-          console.log("Tokens saved to localStorage");
-        } catch (storageError) {
-          console.error("Error saving tokens to localStorage:", storageError);
-        }
-
-        try {
-          navigate("/");
-          console.log("Navigation to home");
-        } catch (navError) {
-          console.error("Error during navigation:", navError);
-        }
-        // navigate("/");
+        // Save meta info to localStorage
+        localStorage.setItem(ACCESS_TOKEN, res.data.access);
+        localStorage.setItem(REFRESH_TOKEN, res.data.refresh);
+        localStorage.setItem("username", username);
+        // Navigate to homepage once succesfully logged in
+        navigate("/");
       } else {
         // if register immediately redirect to login page
         navigate("/login");

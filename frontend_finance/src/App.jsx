@@ -4,6 +4,7 @@ import Home from "./pages/Home";
 import NotFound from "./pages/NotFound";
 import Register from "./pages/Register";
 import Login from "./pages/Login";
+import { useEffect } from "react";
 
 function Logout() {
   localStorage.clear();
@@ -11,6 +12,20 @@ function Logout() {
 }
 
 function App() {
+  useEffect(() => {
+    // Apply styles to the body element
+    document.body.style.margin = "0";
+    document.body.style.padding = "0";
+    document.body.style.boxSizing = "border-box";
+
+    // Clean up the styles when the component is unmounted
+    return () => {
+      document.body.style.margin = "";
+      document.body.style.padding = "";
+      document.body.style.boxSizing = "";
+    };
+  }, []);
+
   return (
     <BrowserRouter>
       <Routes>
