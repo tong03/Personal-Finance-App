@@ -6,12 +6,17 @@ import Register from "./pages/Register";
 import Login from "./pages/Login";
 import { useEffect } from "react";
 
+import { ColorModeContext, useMode } from "./theme";
+import { CssBaseline, ThemeProvider } from "@mui/material";
+
 function Logout() {
   localStorage.clear();
   return <Navigate to="/login" />;
 }
 
 function App() {
+  const [theme, colorMode] = useMode();
+
   useEffect(() => {
     // Apply styles to the body element
     document.body.style.margin = "0";
@@ -33,7 +38,12 @@ function App() {
           path="/"
           element={
             <ProtectedRoute>
-              <Home />
+              <ColorModeContext.Provider value={colorMode}>
+                <ThemeProvider theme={theme}>
+                  <CssBaseline />
+                  <Home />
+                </ThemeProvider>
+              </ColorModeContext.Provider>
             </ProtectedRoute>
           }
         />
