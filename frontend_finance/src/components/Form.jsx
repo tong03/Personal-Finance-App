@@ -17,7 +17,6 @@ const Form = ({ route, method }) => {
     setLoading(true);
     e.preventDefault();
     try {
-      console.log("About to send POST request..");
       const res = await api.post(route, {
         username,
         password,

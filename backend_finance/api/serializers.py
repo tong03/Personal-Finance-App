@@ -1,13 +1,5 @@
 from rest_framework import serializers
-from .models import Transaction
 from django.contrib.auth.models import User
-
-class TransactionSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Transaction
-        fields = ["id", "title", "amount", "category", "date", "user"]
-        extra_kwargs = {"user": {"read_only": True}}
-
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:

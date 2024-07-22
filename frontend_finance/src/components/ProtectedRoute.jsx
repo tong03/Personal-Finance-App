@@ -28,6 +28,7 @@ const ProtectedRoute = ({ children }) => {
         setIsAuthenticated(false);
       }
     } catch (error) {
+      console.log("Refresh Token: ", refreshToken);
       console.log(error);
       setIsAuthenticated(false);
     }
