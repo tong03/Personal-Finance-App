@@ -1,12 +1,14 @@
-import React from "react";
+import React, { useState } from "react";
 import { Box, useTheme, Typography } from "@mui/material";
 import { tokens } from "../theme";
 import api from "../api";
 import "../styles/Dashboard.css";
-
+import PlaidLinkComponent from "../components/PlaidLinkComponent";
+import { ACCESS_TOKEN, REFRESH_TOKEN } from "../constants";
 const Dashboard = () => {
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
+  const [showPlaidLink, setShowPlaidLink] = useState(false);
 
   const handleTesting = async () => {
     try {
@@ -17,6 +19,10 @@ const Dashboard = () => {
     } catch (error) {
       console.log("Error: ", error);
     }
+  };
+
+  const handleLinkAccountClick = () => {
+    setShowPlaidLink(true);
   };
 
   return (
@@ -30,14 +36,17 @@ const Dashboard = () => {
       >
         {/* ROW 1 */}
         <Box gridColumn="span 12" backgroundColor={colors.primary[100]}>
-          <button className="link-btn" onClick={handleTesting}>
-            Link Account
+          <button className="link-btn" onClick={handleLinkAccountClick}>
+            Create Link
           </button>
-          <div id="textField"></div>
+          {showPlaidLink && <PlaidLinkComponent />}
         </Box>
         {/* ROW 2 */}
         <Box gridColumn="span 12" backgroundColor={colors.greenAccent[500]}>
-          <button className="transaction-btn">Get Transactions</button>
+          <button className="transaction-btn" onClick={handleTesting}>
+            Get Transactions
+          </button>
+          <div id="textField"></div>
         </Box>
       </Box>
     </Box>
