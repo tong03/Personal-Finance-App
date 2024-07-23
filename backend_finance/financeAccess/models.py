@@ -2,8 +2,8 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.conf import settings
-from django.contrib.postgres.fields import ArrayField
-from django.contrib.postgres.fields import HStoreField
+# from django.contrib.postgres.fields import ArrayField
+# from django.contrib.postgres.fields import HStoreField
 from datetime import datetime
 from .utils import BuiltinCategories
     
@@ -13,6 +13,7 @@ class PlaidItem(models.Model):
     user = models.ForeignKey(User, blank=False, null=False, on_delete=models.CASCADE, default=None)
     access_token = models.CharField(max_length=200, unique=True)
     item_id = models.CharField(max_length=200, unique=True)
+    cursor = models.CharField(max_length=200, blank=True, null=True)
 
 # Account Model
 class Account(models.Model):
@@ -59,40 +60,22 @@ class BudgetCategoryAmount(models.Model):
 
 # Transaction Model
 class Transaction(models.Model):
-    id = models.AutoField(primary_key=True)
-    account = models.ForeignKey(Account, on_delete=models.CASCADE, null=True, blank=True)
-    account_owner = models.CharField(max_length=200, null=True)
-    amount = models.DecimalField(max_digits=12, decimal_places=2, null=True)
-    authorized_date = models.CharField(max_length=200, null=True)
-    builtin_category = models.ForeignKey(Category, null=True, blank=True, on_delete=models.DO_NOTHING, default=int(BuiltinCategories.MISCELLANEOUS.value))
-    category = ArrayField(models.CharField(max_length=200), null=True)
-    category_id = models.CharField(max_length=200, null=True)
-    date = models.DateTimeField(null=False, default=datetime.now())
-    iso_currency_code = models.CharField(max_length=200, null=True)
-    location = models.JSONField(null=True)
-    merchant_name = models.CharField(max_length=200, null=True)
-    name = models.CharField(max_length=200, null=True)
-    payment_meta = models.JSONField(null=True)
-    payment_channel = models.CharField(max_length=200, null=True)
-    pending = models.BooleanField(null=True)
-    pending_transaction_id = models.CharField(max_length=200, null=True)
-    transaction_code = models.CharField(max_length=200, null=True)
-    transaction_id = models.CharField(max_length=200, unique=True, null=True, blank=False)
-    transaction_type = models.CharField(max_length=200, null=True)
-    unofficial_currency_code = models.CharField(max_length=200, null=True)
-    user = models.ForeignKey(User, null=False, blank=False, on_delete=models.CASCADE, default=None)
+    plaid_item = models.ForeignKey(PlaidItem, on_delete=models.CASCADE)
+    transaction_id = models.CharField(max_length=200, unique=True)
+    account_id = models.CharField(max_length=200)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    iso_currency_code = models.CharField(max_length=3, null=True, blank=True)
+    unofficial_currency_code = models.CharField(max_length=3, null=True, blank=True)
+    category = models.CharField(max_length=255, null=True, blank=True)
+    merchant_name = models.CharField(max_length=255, null=True, blank=True)
+    date = models.DateField()
+    payment_channel = models.CharField(max_length=50)
+    transaction_type = models.CharField(max_length=50)
+
+
+    # builtin_category = models.ForeignKey(Category, null=True, blank=True, on_delete=models.DO_NOTHING, default=int(BuiltinCategories.MISCELLANEOUS.value))
+    # category = ArrayField(models.CharField(max_length=200), null=True)
+    # category_id = models.CharField(max_length=200, null=True)
 
     def __str__(self):
-        return f"{self.name} - ${self.amount} on {self.date.strftime('%Y-%m-%d')}"
-    
-
-# Create your models here.
-# class Transaction(models.Model):
-#     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="transaction")
-#     title = models.CharField(max_length=100)
-#     amount = models.DecimalField(decimal_places=2, max_digits=10)
-#     category = models.TextField()
-#     date = models.DateTimeField(auto_now_add=True)
-
-#     def __str__(self):
-#         return f"{self.title} - {self.amount} on: {self.date}"
+        return f"{self.merchant_name} - ${self.amount} on {self.date.strftime('%Y-%m-%d')}"

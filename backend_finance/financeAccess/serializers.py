@@ -4,18 +4,13 @@ from .models import *
 class TransactionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Transaction
-        fields = ['id', 'account', 'account_owner', 'amount', 'authorized_date', 'builtin_category', 
-                  'category', 'category_id', 'date', 'iso_currency_code', 'location', 'merchant_name', 
-                  'name', 'payment_meta', 'payment_channel', 'pending', 'pending_transaction_id', 
-                  'transaction_code', 'transaction_id', 'transaction_type', 
-                  'unofficial_currency_code', 'user']
-        extra_kwargs = {"user": {"read_only": True}}
+        fields = '__all__'
 
 
 class PlaidItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = PlaidItem
-        fields = ['user', 'access_token', 'item_id']
+        fields = '__all__'
         extra_kwargs = {"user": {"read_only": True}}
 
 class AccountSerializer(serializers.ModelSerializer):

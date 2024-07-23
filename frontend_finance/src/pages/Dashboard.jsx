@@ -9,6 +9,7 @@ const Dashboard = () => {
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
   const [showPlaidLink, setShowPlaidLink] = useState(false);
+  const [transactions, setTransactions] = useState([]);
 
   const handleTesting = async () => {
     try {
@@ -25,6 +26,16 @@ const Dashboard = () => {
     setShowPlaidLink(true);
   };
 
+  const handleGetTransactionsClick = async () => {
+    try {
+      const res = await api.post("/financeAccess/get_transactions/");
+      const data = res.data;
+      setTransactions(data);
+    } catch (error) {
+      console.log("Error:", error);
+    }
+  };
+
   return (
     <Box m="20px">
       {/* GRIDS */}
@@ -35,18 +46,35 @@ const Dashboard = () => {
         gap="40px"
       >
         {/* ROW 1 */}
-        <Box gridColumn="span 12" backgroundColor={colors.primary[100]}>
+        <Box gridColumn="span 6" backgroundColor={colors.primary[100]}>
           <button className="link-btn" onClick={handleLinkAccountClick}>
             Create Link
           </button>
           {showPlaidLink && <PlaidLinkComponent />}
         </Box>
+        <Box gridColumn="span 6" backgroundColor={colors.primary[300]}>
+          <button onClick={handleTesting}>Test Click</button>
+          <div id="textField"></div>
+        </Box>
         {/* ROW 2 */}
         <Box gridColumn="span 12" backgroundColor={colors.greenAccent[500]}>
-          <button className="transaction-btn" onClick={handleTesting}>
+          <button
+            className="transaction-btn"
+            onClick={handleGetTransactionsClick}
+          >
             Get Transactions
           </button>
-          <div id="textField"></div>
+        </Box>
+        {/* ROW 3 */}
+        <Box gridColumn="span 12" backgroundColor={colors.blueAccent[500]}>
+          <Typography variant="h6">Transactions:</Typography>
+          <ul>
+            {transactions.map((transaction, index) => (
+              <li key={index}>
+                {transaction.name}: {transaction.amount} - {transaction.date}
+              </li>
+            ))}
+          </ul>
         </Box>
       </Box>
     </Box>

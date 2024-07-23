@@ -52,8 +52,6 @@ api_client = plaid.ApiClient(configuration)
 client = plaid_api.PlaidApi(api_client)
 print(f"Plaid client: {client}")
 
-
-# create_link_token
 @csrf_exempt
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -92,12 +90,14 @@ def exchange_public_token(request):
     if not public_token:
         return JsonResponse({'error': "public_token required"}, status=400)
 
-    request = ItemPublicTokenExchangeRequest(public_token=public_token)
-
     try:
-        exchange_response = client.item_public_token_exchange(request)
+        exchange_request = ItemPublicTokenExchangeRequest(public_token=public_token)
+        exchange_response = client.item_public_token_exchange(exchange_request)
         access_token = exchange_response['access_token']
         item_id = exchange_response['item_id']
+
+        if not access_token or not item_id:
+            return JsonResponse({'error': "Failed to retrieve access token or item ID"}, status=500)
 
         plaid_item = PlaidItem(
             user=request.user,
@@ -107,8 +107,51 @@ def exchange_public_token(request):
         plaid_item.save()
 
         return JsonResponse({'public_token_exchange': 'complete', 'access_token': access_token, 'item_id': item_id})
-    except Exception as e:
-        return JsonResponse({'error': str(e)}, status=500)
+    except plaid.ApiException as e:
+        return JsonResponse({'error': {
+            'display_message': str(e),
+            'error_code': e.status
+        }}, status=500)
+    
+
+@csrf_exempt
+@permission_classes([IsAuthenticated])
+@api_view(['POST'])
+def get_transactions(request):
+    plaid_item = PlaidItem.objects.get(user=request.user)
+    access_token = plaid_item.access_token
+    cursor = plaid_item.cursor or ''
+    all_transactions = []
+    has_more = True
+
+    while has_more:
+        try:
+            sync_request = plaid.model.TransactionsSyncRequest(
+                access_token = access_token,
+                cursor = cursor
+            )
+            response = client.transactions_sync(sync_request)
+            transactions = response['transactions']
+            all_transactions.extend(transactions)
+
+            cursor = response['next_cursor']
+            has_more = response['has_more']
+        except plaid.ApiException as e:
+            if e.body['error_code'] == 'TRANSACTIONS_SYNC_MUTATION_DURING_PAGINATION':
+                # Restart the pagination loop from the original cursor
+                cursor = ''
+                continue
+            else:
+                return JsonResponse({'error': {
+                    'display_message': str(e),
+                    'error_code': e.status
+                }}, status=500)
+
+    plaid_item.cursor = cursor
+    plaid_item.save()
+
+    return JsonResponse({'transactions': all_transactions})
+
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
