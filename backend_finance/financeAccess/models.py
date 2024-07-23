@@ -14,6 +14,7 @@ class PlaidItem(models.Model):
     access_token = models.CharField(max_length=200, unique=True)
     item_id = models.CharField(max_length=200, unique=True)
     cursor = models.CharField(max_length=200, blank=True, null=True)
+    institution_name = models.CharField(max_length=200, blank=True, null=True)
 
 # Account Model
 class Account(models.Model):

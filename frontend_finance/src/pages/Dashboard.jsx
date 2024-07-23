@@ -5,11 +5,13 @@ import api from "../api";
 import "../styles/Dashboard.css";
 import PlaidLinkComponent from "../components/PlaidLinkComponent";
 import { ACCESS_TOKEN, REFRESH_TOKEN } from "../constants";
+
 const Dashboard = () => {
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
   const [showPlaidLink, setShowPlaidLink] = useState(false);
   const [transactions, setTransactions] = useState([]);
+  const [accounts, setAccounts] = useState([]);
 
   const handleTesting = async () => {
     try {
@@ -36,6 +38,16 @@ const Dashboard = () => {
     }
   };
 
+  const handleGetAccountsClick = async () => {
+    try {
+      const res = await api.get("/financeAccess/get_accounts/");
+      const data = res.data.accounts;
+      setAccounts(data);
+    } catch (error) {
+      console.log("Error:", error);
+    }
+  };
+
   return (
     <Box m="20px">
       {/* GRIDS */}
@@ -52,7 +64,21 @@ const Dashboard = () => {
           </button>
           {showPlaidLink && <PlaidLinkComponent />}
         </Box>
-        <Box gridColumn="span 6" backgroundColor={colors.primary[300]}>
+        <Box gridColumn="span 3" backgroundColor={colors.primary[300]}>
+          <button className="accounts-btn" onClick={handleGetAccountsClick}>
+            Get Accounts
+          </button>
+          <div id="accountsField">
+            <ul>
+              {accounts.map((account, index) => (
+                <li key={index}>
+                  {account.name} - {account.mask}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </Box>
+        <Box gridColumn="span 3" backgroundColor={colors.primary[300]}>
           <button onClick={handleTesting}>Test Click</button>
           <div id="textField"></div>
         </Box>

@@ -38,9 +38,8 @@ const PlaidLinkComponent: React.FC = () => {
     try {
       console.log("Inside generateToken!");
       const response = await api.post("/financeAccess/create_link_token/");
-      console.log("Response:", response);
       const data = response.data;
-      console.log("Response Data:", data); // Log the response data
+      console.log("Response Data:", data);
       setLinkToken(data.link_token);
     } catch (error) {
       console.log("Error generating link token:", error);
@@ -51,7 +50,7 @@ const PlaidLinkComponent: React.FC = () => {
     generateToken();
   }, []);
 
-  console.log("Link Token:", linkToken);
+  // console.log("Link Token:", linkToken);
   return linkToken ? <Link linkToken={linkToken} /> : null;
 };
 
