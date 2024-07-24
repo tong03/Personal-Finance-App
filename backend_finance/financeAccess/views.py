@@ -33,7 +33,7 @@ from plaid.model.products import Products
 from plaid.models import InstitutionsGetByIdRequest, ItemGetRequest
 from plaid.model.country_code import CountryCode
 import plaid
-from .models import PlaidItem
+from .models import PlaidItem, Account
 from plaid.model.transactions_sync_request import TransactionsSyncRequest
 
 PLAID_CLIENT_ID = os.getenv('PLAID_CLIENT_ID')
@@ -90,10 +90,14 @@ def create_link_token(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def exchange_public_token(request):
+    user = request.user
     public_token = request.data.get('public_token')
+    print(request.data)
     if not public_token:
         return JsonResponse({'error': "public_token required"}, status=400)
-
+    # accounts = request.data.get('accounts')
+    # if not accounts:
+    #     return JsonResponse({'error': "No accounts found"}, status=400)
 
     try:
         exchange_request = ItemPublicTokenExchangeRequest(public_token=public_token)
@@ -116,7 +120,9 @@ def exchange_public_token(request):
         institution_response = client.institutions_get_by_id(institution_request)
         institution_name = institution_response['institution']['name']
 
-        plaid_item = PlaidItem.objects.filter(user=request.user, institution_name=institution_name).first()
+# TODO: Could turn the section below more concise with a try-except block
+        plaid_item = PlaidItem.objects.filter(user=request.user, item_id=item_id).first()
+        # check to see if filtered object exists
         if plaid_item:
             return JsonResponse({
                 'public_token_exchange': 'complete',
@@ -194,18 +200,38 @@ def get_transactions(request):
 @permission_classes([IsAuthenticated])
 @api_view(['GET'])
 def get_accounts(request):
-    plaid_items = PlaidItem.objects.filter(user=request.user)
+    curr_user=request.user
+    if not curr_user:
+        return JsonResponse({'error': 'User not authenticated'}, status=403)
+    plaid_items = PlaidItem.objects.filter(user=curr_user)
     if not plaid_items.exists():
         return JsonResponse({'error': "No Plaid items found for this user"}, status=404)
     
     accounts = []
-    for item in plaid_items:
+    for item in plaid_items: 
         access_token = item.access_token
         try:
             api_request = plaid_api.AccountsGetRequest(access_token=access_token)
             api_response = client.accounts_get(api_request)
             accounts.extend(api_response.to_dict()['accounts'])
-
+            
+            for account in accounts:
+                existing_acct = Account.objects.filter(plaid_account_id=account['account_id'], user=curr_user).first()
+                if not existing_acct:
+                    new_acct = Account(
+                        plaid_account_id=account['account_id'],
+                        balances=account['balances'],
+                        mask=account['mask'],
+                        name=account['name'],
+                        official_name=account['official_name'],
+                        subtype=account['subtype'],
+                        account_type=account['type'],
+                        user=curr_user,
+                        item=item
+                    )
+                    new_acct.save()
+            return JsonResponse({"accounts": accounts})
+        
         except plaid.ApiException as e:
             response = json.loads(e.body)
             return JsonResponse({
@@ -216,7 +242,13 @@ def get_accounts(request):
                     'error_type': response['error_type']
                 }
             }, status=e.status)
-    return JsonResponse({"accounts": accounts})
+        
+        except Exception as e:
+            return JsonResponse({
+                'status': 'error',
+                'message': str(e),
+            }, status=500)
+            
 
 
 

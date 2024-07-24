@@ -41,6 +41,8 @@ const Dashboard = () => {
   const handleGetAccountsClick = async () => {
     try {
       const res = await api.get("/financeAccess/get_accounts/");
+      // Debug log
+      console.log("Accounts Response:", res.data);
       const data = res.data.accounts;
       setAccounts(data);
     } catch (error) {
@@ -64,7 +66,7 @@ const Dashboard = () => {
           </button>
           {showPlaidLink && <PlaidLinkComponent />}
         </Box>
-        <Box gridColumn="span 3" backgroundColor={colors.primary[300]}>
+        <Box gridColumn="span 4" backgroundColor={colors.primary[300]}>
           <button className="accounts-btn" onClick={handleGetAccountsClick}>
             Get Accounts
           </button>
@@ -72,13 +74,14 @@ const Dashboard = () => {
             <ul>
               {accounts.map((account, index) => (
                 <li key={index}>
-                  {account.name} - {account.mask}
+                  {account.name} - ${account.balances.available}{" "}
+                  {account.balances.iso_currency_code}
                 </li>
               ))}
             </ul>
           </div>
         </Box>
-        <Box gridColumn="span 3" backgroundColor={colors.primary[300]}>
+        <Box gridColumn="span 2" backgroundColor={colors.primary[300]}>
           <button onClick={handleTesting}>Test Click</button>
           <div id="textField"></div>
         </Box>
