@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Box, useTheme, Typography } from "@mui/material";
 import { tokens } from "../theme";
 import api from "../api";
@@ -12,6 +12,21 @@ const Dashboard = () => {
   const [showPlaidLink, setShowPlaidLink] = useState(false);
   const [transactions, setTransactions] = useState([]);
   const [accounts, setAccounts] = useState([]);
+  const [page, setPage] = useState(1);
+  const [pages, setPages] = useState(1);
+
+  const fetchTransactions = async (pageNumber) => {
+    try {
+      const res = await api.post(
+        `/financeAccess/get_transactions/?page=${pageNumber}`
+      );
+      const data = res.data;
+      setTransactions(data.transactions);
+      setPages(data.pages);
+    } catch (error) {
+      console.log("Error:", error);
+    }
+  };
 
   const handleTesting = async () => {
     try {
@@ -28,14 +43,14 @@ const Dashboard = () => {
     setShowPlaidLink(true);
   };
 
-  const handleGetTransactionsClick = async () => {
-    try {
-      const res = await api.post("/financeAccess/get_transactions/");
-      const data = res.data;
-      setTransactions(data);
-    } catch (error) {
-      console.log("Error:", error);
-    }
+  const handleGetTransactionsClick = () => {
+    setPage(1);
+    fetchTransactions(1);
+  };
+
+  const handlePageChange = (newPage) => {
+    setPage(newPage);
+    fetchTransactions(newPage);
   };
 
   const handleGetAccountsClick = async () => {
@@ -104,6 +119,25 @@ const Dashboard = () => {
               </li>
             ))}
           </ul>
+          {transactions && (
+            <Box>
+              <button
+                disabled={page <= 1}
+                onClick={() => handlePageChange(page - 1)}
+              >
+                Previous
+              </button>
+              <span>
+                Page {page} of {pages}
+              </span>
+              <button
+                disabled={page >= pages}
+                onClick={() => handlePageChange(page + 1)}
+              >
+                Next
+              </button>
+            </Box>
+          )}
         </Box>
       </Box>
     </Box>

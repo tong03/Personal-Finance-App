@@ -61,22 +61,19 @@ class BudgetCategoryAmount(models.Model):
 
 # Transaction Model
 class Transaction(models.Model):
-    plaid_item = models.ForeignKey(PlaidItem, on_delete=models.CASCADE)
+    id = models.AutoField(primary_key=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, blank=False, null=False)
+    account = models.ForeignKey(Account, on_delete=models.CASCADE, blank=True, null=True)
     transaction_id = models.CharField(max_length=200, unique=True)
-    account_id = models.CharField(max_length=200)
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     iso_currency_code = models.CharField(max_length=3, null=True, blank=True)
     unofficial_currency_code = models.CharField(max_length=3, null=True, blank=True)
-    category = models.CharField(max_length=255, null=True, blank=True)
-    merchant_name = models.CharField(max_length=255, null=True, blank=True)
+    category = models.CharField(max_length=200, null=True, blank=True)
+    name = models.CharField(max_length=200, null=True)
     date = models.DateField()
     payment_channel = models.CharField(max_length=50)
-    transaction_type = models.CharField(max_length=50)
-
-
-    # builtin_category = models.ForeignKey(Category, null=True, blank=True, on_delete=models.DO_NOTHING, default=int(BuiltinCategories.MISCELLANEOUS.value))
-    # category = ArrayField(models.CharField(max_length=200), null=True)
-    # category_id = models.CharField(max_length=200, null=True)
+    location = models.JSONField(null=True)
+    pending = models.BooleanField(null=True)
 
     def __str__(self):
-        return f"{self.merchant_name} - ${self.amount} on {self.date.strftime('%Y-%m-%d')}"
+        return f"{self.name} - ${self.amount} on {self.date.strftime('%Y-%m-%d')}"

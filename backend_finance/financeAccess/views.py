@@ -2,15 +2,16 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from .models import *
 from .serializers import *
-from datetime import datetime, timedelta
+from datetime import datetime, date
 from django.urls import reverse
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
+import traceback
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 
 import json
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login, logout
 from django.core.paginator import Paginator
-from django.db.models import Sum, Q
 import collections
 from .utils import categorize_transactions
 import os
@@ -40,8 +41,8 @@ PLAID_CLIENT_ID = os.getenv('PLAID_CLIENT_ID')
 PLAID_SECRET = os.getenv('PLAID_SECRET')
 
 # Debugging: Print the environment variables to verify they are set correctly
-print(f"PLAID_CLIENT_ID: {PLAID_CLIENT_ID}")
-print(f"PLAID_SECRET: {PLAID_SECRET}")
+# print(f"PLAID_CLIENT_ID: {PLAID_CLIENT_ID}")
+# print(f"PLAID_SECRET: {PLAID_SECRET}")
 
 # Initialize plaid client with credentials
 configuration = plaid.Configuration(
@@ -53,7 +54,7 @@ configuration = plaid.Configuration(
 )
 api_client = plaid.ApiClient(configuration)
 client = plaid_api.PlaidApi(api_client)
-print(f"Plaid client: {client}")
+# print(f"Plaid client: {client}")
 
 
 @csrf_exempt
@@ -152,49 +153,183 @@ def exchange_public_token(request):
         }}, status=500)
     
 
+# @csrf_exempt
+# @permission_classes([IsAuthenticated])
+# @api_view(['POST'])
+# def get_transactions(request):
+#     try:
+#         plaid_item = PlaidItem.objects.get(user=request.user)
+#     except PlaidItem.DoesNotExist:
+#         return JsonResponse({'error': "Plaid item not found"}, status=404)
+    
+#     access_token = plaid_item.access_token
+#     cursor = plaid_item.cursor or ''
+#     all_transactions = []
+#     has_more = True
+
+#     while has_more:
+#         try:
+#             ### TODO: BELOW IS WRONG AT THE MOMENT
+#             sync_request = TransactionsSyncRequest(
+#                 access_token=access_token,
+#                 cursor=cursor
+#             )
+#             response = client.transactions_sync(sync_request)
+#             print(f"Plaid API response: {response}")
+#             ### TODO: ABOVE IS WRONG
+#             transactions = response['transactions']
+#             all_transactions.extend(transactions['added'])
+
+#             cursor = response['next_cursor']
+#             has_more = response['has_more']
+#             plaid_item.cursor = cursor
+#             plaid_item.save()
+#         except plaid.ApiException as e:
+#             if e.body['error_code'] == 'TRANSACTIONS_SYNC_MUTATION_DURING_PAGINATION':
+#                 # Restart the pagination loop from the original cursor
+#                 cursor = ''
+#                 continue
+#             else:
+#                 return JsonResponse({'error': {
+#                     'display_message': str(e),
+#                     'error_code': e.status
+#                 }}, status=500)
+
+#     return JsonResponse({'transactions': all_transactions})
+
+
+
 @csrf_exempt
 @permission_classes([IsAuthenticated])
 @api_view(['POST'])
 def get_transactions(request):
-    try:
-        plaid_item = PlaidItem.objects.get(user=request.user)
-    except PlaidItem.DoesNotExist:
-        return JsonResponse({'error': "Plaid item not found"}, status=404)
+    curr_user = request.user
+    if not curr_user:
+        return JsonResponse({'error': 'User not authenticated'}, status=403)
     
-    access_token = plaid_item.access_token
-    cursor = plaid_item.cursor or ''
-    all_transactions = []
-    has_more = True
+    page = request.GET.get('page', 1)  # Get the page number from request, default is 1
+    per_page = request.GET.get('per_page', 10)  # Get the number of items per page from request, default is 10
 
-    while has_more:
+    plaid_items = PlaidItem.objects.filter(user=curr_user)
+    if not plaid_items.exists():
+        return JsonResponse({'error': "No Plaid items found for this user"}, status=404)
+    transactions = []
+    for item in plaid_items:
         try:
-            ### TODO: BELOW IS WRONG AT THE MOMENT
+            access_token = item.access_token
+            # Make cursor if not presence
+            if not item.cursor:
+                item.cursor = ""
+                item.save()
+
             sync_request = TransactionsSyncRequest(
                 access_token=access_token,
-                cursor=cursor
+                cursor=item.cursor
             )
-            response = client.transactions_sync(sync_request)
-            print(f"Plaid API response: {response}")
-            ### TODO: ABOVE IS WRONG
-            transactions = response['transactions']
-            all_transactions.extend(transactions['added'])
+            sync_response = client.transactions_sync(sync_request)
+            print("Sync_response:", sync_response.to_dict())
+            transactions.extend(sync_response['added'])
 
-            cursor = response['next_cursor']
-            has_more = response['has_more']
-            plaid_item.cursor = cursor
-            plaid_item.save()
+            # Update cursor
+            item.cursor = sync_response['next_cursor']
+            item.save()
+
+            for transaction in transactions:
+                try:
+                    existing_trans = Transaction.objects.get(transaction_id=transaction['transaction_id'], user=curr_user)
+                    continue
+                except Transaction.DoesNotExist:
+                    try:
+                        account = curr_user.account_set.get(plaid_account_id=transaction['account_id'])
+                    except Account.DoesNotExist:
+                        print(f"Account with plaid_account_id {transaction['account_id']} not found for user {curr_user}")
+                        continue  # Skip this transaction if the account does not exist
+                    new_trans = Transaction()
+                    new_trans.account = curr_user.account_set.get(plaid_account_id=transaction['account_id'])
+                    new_trans.user = curr_user
+                    new_trans.transaction_id = transaction['transaction_id']
+                    new_trans.amount = transaction['amount']
+                    new_trans.date = parse_date(transaction['date'])
+                    new_trans.iso_currency_code = transaction['iso_currency_code']
+                    new_trans.unofficial_currency_code = transaction.get('unofficial_currency_code', None)
+                    new_trans.category = ', '.join(transaction['category'])
+                    new_trans.payment_channel = transaction['payment_channel']
+                    new_trans.pending = transaction['pending']
+                    new_trans.location = {
+                        "city": transaction['location'].get('city', ''),
+                        "postal_code" : transaction['location'].get('postal_code', ''),
+                    }          
+                    new_trans.name = transaction['name']
+
+                    new_trans.save()
+   
         except plaid.ApiException as e:
-            if e.body['error_code'] == 'TRANSACTIONS_SYNC_MUTATION_DURING_PAGINATION':
-                # Restart the pagination loop from the original cursor
-                cursor = ''
-                continue
-            else:
-                return JsonResponse({'error': {
-                    'display_message': str(e),
-                    'error_code': e.status
-                }}, status=500)
+            response = json.loads(e.body)
+            return JsonResponse({
+                'error': {
+                    'status_code': e.status,
+                    'display_message': response['error_message'],
+                    'error_code': response['error_code'],
+                    'error_type': response['error_type']
+                }
+            }, status=e.status)
+        except Exception as e:
+            print("Exception occurred: ", str(e))
+            print(traceback.format_exc()) 
+            return JsonResponse({
+                'status': 'error',
+                'message': str(e),
+            }, status=500)       
 
-    return JsonResponse({'transactions': all_transactions})
+
+    # Pagination attempt before returning data    
+    transactions_query = Transaction.objects.filter(user=curr_user)
+    paginator = Paginator(transactions_query, per_page)
+
+    try:
+        transactions_page = paginator.page(page)
+    except PageNotAnInteger:
+        transactions_page = paginator.page(1)
+    except EmptyPage:
+        transactions_page = paginator.page(paginator.num_pages)
+
+    # Turning transactions into a dict to return in JSON
+    transactions_data = [transaction_to_dict(trans) for trans in transactions_page]
+    
+    response_data = {
+        'status': 'success',
+        'transactions': transactions_data,
+        'page': transactions_page.number,
+        'pages': paginator.num_pages,
+        'total_transactions': paginator.count,
+    }
+
+    return JsonResponse(response_data)
+
+
+def parse_date(date_value):
+    if isinstance(date_value, date):
+        return date_value
+    elif isinstance(date_value, str):
+        return datetime.strptime(date_value, '%Y-%m-%d').date()
+    else:
+        raise ValueError(f"Unsupported date format: {date_value}")
+
+def transaction_to_dict(transaction):
+    return {
+        'transaction_id': transaction.transaction_id,
+        'account': transaction.account.id,  # or any other identifier
+        'user': transaction.user.id,
+        'amount': transaction.amount,
+        'date': transaction.date.strftime('%Y-%m-%d'),
+        'iso_currency_code': transaction.iso_currency_code,
+        'unofficial_currency_code': transaction.unofficial_currency_code,
+        'category': transaction.category,
+        'payment_channel': transaction.payment_channel,
+        'pending': transaction.pending,
+        'location': transaction.location,
+        'name': transaction.name,
+    }
 
 @csrf_exempt
 @permission_classes([IsAuthenticated])
@@ -258,5 +393,6 @@ def testing(request):
     plaid_items = PlaidItem.objects.all()
     if plaid_items.exists():
         plaid_items.delete()
-        return Response({"message": "Deleted all PlaidItems"})
+        return Response({"message": "Deleted all in DB."})
+    
     return Response({"message": "This is a test"})
