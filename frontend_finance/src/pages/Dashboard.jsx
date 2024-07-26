@@ -6,7 +6,7 @@ import PlaidLinkComponent from "../components/PlaidLinkComponent";
 
 // MUI Stuffs
 import { Box, useTheme, Typography } from "@mui/material";
-import { DataGrid } from "@mui/x-data-grid";
+import { DataGrid, GridToolbar } from "@mui/x-data-grid";
 
 const Dashboard = () => {
   const theme = useTheme();
@@ -186,6 +186,9 @@ const Dashboard = () => {
                 borderTop: "none",
                 backgroundColor: colors.blueAccent[700],
               },
+              "& .MuiDataGrid-toolbarContainer .MuiButton-text": {
+                color: `${colors.grey[100]} !important`,
+              },
             }}
           >
             <DataGrid
@@ -215,6 +218,7 @@ const Dashboard = () => {
                 },
               }}
               loading={pageState.isLoading}
+              slots={{ toolbar: GridToolbar }}
             />
           </Box>
         </Box>
