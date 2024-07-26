@@ -3,3 +3,25 @@
   font-size: large;
   font-weight: bold;
 }
+
+.transaction-container {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 10px; /* Padding to keep space within the borders */
+  box-sizing: border-box;
+  overflow: hidden; /* Prevent overflow outside the container */
+}
+
+.transaction-container .MuiDataGrid-root {
+  flex-grow: 1;
+  overflow: hidden; /* Takes care of the outer container of DataGrid, 
+  while the overflow in the Box takes care of the actual content within*/
+}
+
+/* .pagination-container {
+  position: absolute;
+  bottom: -25px;
+  right: 5px;
+} */

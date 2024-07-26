@@ -152,53 +152,6 @@ def exchange_public_token(request):
             'error_code': e.status
         }}, status=500)
     
-
-# @csrf_exempt
-# @permission_classes([IsAuthenticated])
-# @api_view(['POST'])
-# def get_transactions(request):
-#     try:
-#         plaid_item = PlaidItem.objects.get(user=request.user)
-#     except PlaidItem.DoesNotExist:
-#         return JsonResponse({'error': "Plaid item not found"}, status=404)
-    
-#     access_token = plaid_item.access_token
-#     cursor = plaid_item.cursor or ''
-#     all_transactions = []
-#     has_more = True
-
-#     while has_more:
-#         try:
-#             ### TODO: BELOW IS WRONG AT THE MOMENT
-#             sync_request = TransactionsSyncRequest(
-#                 access_token=access_token,
-#                 cursor=cursor
-#             )
-#             response = client.transactions_sync(sync_request)
-#             print(f"Plaid API response: {response}")
-#             ### TODO: ABOVE IS WRONG
-#             transactions = response['transactions']
-#             all_transactions.extend(transactions['added'])
-
-#             cursor = response['next_cursor']
-#             has_more = response['has_more']
-#             plaid_item.cursor = cursor
-#             plaid_item.save()
-#         except plaid.ApiException as e:
-#             if e.body['error_code'] == 'TRANSACTIONS_SYNC_MUTATION_DURING_PAGINATION':
-#                 # Restart the pagination loop from the original cursor
-#                 cursor = ''
-#                 continue
-#             else:
-#                 return JsonResponse({'error': {
-#                     'display_message': str(e),
-#                     'error_code': e.status
-#                 }}, status=500)
-
-#     return JsonResponse({'transactions': all_transactions})
-
-
-
 @csrf_exempt
 @permission_classes([IsAuthenticated])
 @api_view(['POST'])
@@ -207,8 +160,8 @@ def get_transactions(request):
     if not curr_user:
         return JsonResponse({'error': 'User not authenticated'}, status=403)
     
-    page = request.GET.get('page', 1)  # Get the page number from request, default is 1
-    per_page = request.GET.get('per_page', 10)  # Get the number of items per page from request, default is 10
+    page = int(request.GET.get('page', 1))  
+    per_page = int(request.GET.get('per_page', 10))
 
     plaid_items = PlaidItem.objects.filter(user=curr_user)
     if not plaid_items.exists():
@@ -234,6 +187,7 @@ def get_transactions(request):
             item.cursor = sync_response['next_cursor']
             item.save()
 
+            # screen the transactions to see if they exist already for user
             for transaction in transactions:
                 try:
                     existing_trans = Transaction.objects.get(transaction_id=transaction['transaction_id'], user=curr_user)
@@ -301,7 +255,7 @@ def get_transactions(request):
         'transactions': transactions_data,
         'page': transactions_page.number,
         'pages': paginator.num_pages,
-        'total_transactions': paginator.count,
+        'total': paginator.count,
     }
 
     return JsonResponse(response_data)
