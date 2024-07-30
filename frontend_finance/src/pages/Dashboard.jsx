@@ -13,6 +13,7 @@ const Dashboard = () => {
   const colors = tokens(theme.palette.mode);
   const [showPlaidLink, setShowPlaidLink] = useState(false);
   const [accounts, setAccounts] = useState([]);
+  const [monthlyTotal, setMonthlyTotal] = useState([]);
 
   const [pageState, setPageState] = useState({
     isLoading: false,
@@ -48,14 +49,12 @@ const Dashboard = () => {
   ];
 
   const fetchTransactions = async () => {
-    console.log("Clicked!");
     try {
       setPageState((old) => ({ ...old, isLoading: true }));
       const res = await api.post(
         `/financeAccess/get_transactions/?page=${pageState.page}&per_page=${pageState.pageSize}`
       );
       const data = res.data;
-      console.log(data);
       const formattedTransactions = data.transactions.map(
         (transaction, idx) => ({
           id: idx + 1 + (pageState.page - 1) * pageState.pageSize,
@@ -65,6 +64,7 @@ const Dashboard = () => {
           date: transaction.date,
         })
       );
+
       setPageState((old) => ({
         ...old,
         isLoading: false,
@@ -76,9 +76,64 @@ const Dashboard = () => {
     }
   };
 
+  const fetchAllTransactionsForMonthlyTotal = async () => {
+    try {
+      let allTransactions = [];
+      let currentPage = 1;
+      let totalTransactions = 0;
+      const pageSize = 10;
+
+      while (true) {
+        const res = await api.post(
+          `/financeAccess/get_transactions/?page=${currentPage}&per_page=${pageSize}`
+        );
+        const data = res.data;
+        totalTransactions = data.total;
+
+        const transactions = data.transactions.map((transaction, idx) => ({
+          id: idx + 1 + (currentPage - 1) * pageSize,
+          name: transaction.name,
+          amount: parseFloat(transaction.amount),
+          category: transaction.category,
+          date: transaction.date,
+        }));
+
+        allTransactions = [...allTransactions, ...transactions];
+
+        if (allTransactions.length >= totalTransactions) {
+          break;
+        }
+
+        currentPage++;
+      }
+
+      const monthlyTotalMap = allTransactions.reduce((acc, transaction) => {
+        const date = new Date(transaction.date);
+        const monthYear = `${date.getMonth() + 1}-${date.getFullYear()}`;
+        if (!acc[monthYear]) {
+          acc[monthYear] = 0;
+        }
+        acc[monthYear] += transaction.amount;
+        return acc;
+      }, {});
+
+      const monthlyTotalArr = Object.entries(monthlyTotalMap).map(
+        ([monthYear, total]) => ({ monthYear, total: total.toFixed(2) })
+      );
+
+      setMonthlyTotal(monthlyTotalArr);
+    } catch (error) {
+      console.log("Error:", error);
+    }
+  };
+
   useEffect(() => {
     fetchTransactions();
   }, [pageState.page, pageState.pageSize]);
+
+  useEffect(() => {
+    fetchAllTransactionsForMonthlyTotal();
+  }, []);
 
   const handleTesting = async () => {
     try {
@@ -121,19 +176,15 @@ const Dashboard = () => {
         gap="25px"
       >
         {/* ROW 1 */}
-        <Box gridColumn="span 6" backgroundColor={colors.primary[100]}>
+        {/* Link Account Box */}
+        <Box gridColumn="span 3" backgroundColor={colors.primary[100]}>
           <button className="link-btn" onClick={handleLinkAccountClick}>
             Create Link
           </button>
           {showPlaidLink && <PlaidLinkComponent />}
-          <button
-            className="transaction-btn"
-            onClick={handleGetTransactionsClick}
-          >
-            Get Transactions
-          </button>
         </Box>
-        <Box gridColumn="span 4" backgroundColor={colors.primary[300]}>
+        {/* Get Account Box */}
+        <Box gridColumn="span 3" backgroundColor={colors.primary[300]}>
           <button className="accounts-btn" onClick={handleGetAccountsClick}>
             Get Accounts
           </button>
@@ -148,11 +199,46 @@ const Dashboard = () => {
             </ul>
           </div>
         </Box>
-        <Box gridColumn="span 2" backgroundColor={colors.primary[300]}>
-          <button onClick={handleTesting}>Test Click</button>
+        {/* Delete All PlaidItems/Get Transactions Box */}
+        <Box gridColumn="span 3" backgroundColor={colors.primary[300]}>
+          <Box display="flex" justifyContent="space-between">
+            <button onClick={handleTesting}>Test Click</button>
+            <button
+              className="transaction-btn"
+              onClick={handleGetTransactionsClick}
+            >
+              Get Transactions
+            </button>
+          </Box>
           <div id="textField"></div>
         </Box>
-        {/* ROW 2 */}
+        {/* Monthly Amount Summary */}
+        <Box gridColumn="span 3" backgroundColor={colors.primary[100]}>
+          <Box
+            display="flex"
+            flexDirection="column"
+            height="100%"
+            sx={{ p: "0 1rem 1rem 1rem" }}
+          >
+            <Typography
+              variant="h4"
+              color={colors.primary[500]}
+              sx={{ pb: "0.5rem" }}
+            >
+              Monthly Spending
+            </Typography>
+            <Box backgroundColor={colors.primary[300]} flexGrow={1}>
+              <ul>
+                {monthlyTotal.map((item, index) => (
+                  <li key={index}>
+                    {item.monthYear}: ${item.total}
+                  </li>
+                ))}
+              </ul>
+            </Box>
+          </Box>
+        </Box>
+        {/* ROW 2 -- Transaction Container */}
         <Box
           gridColumn="span 12"
           backgroundColor={colors.primary[400]}
