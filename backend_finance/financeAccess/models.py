@@ -2,8 +2,8 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.conf import settings
-# from django.contrib.postgres.fields import ArrayField
-# from django.contrib.postgres.fields import HStoreField
+from django.contrib.postgres.fields import ArrayField
+from django.contrib.postgres.fields import HStoreField
 from datetime import datetime
 from .utils import BuiltinCategories
     
@@ -68,7 +68,8 @@ class Transaction(models.Model):
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     iso_currency_code = models.CharField(max_length=3, null=True, blank=True)
     unofficial_currency_code = models.CharField(max_length=3, null=True, blank=True)
-    category = models.CharField(max_length=200, null=True, blank=True)
+    category = ArrayField(models.CharField(max_length=200), null=True)
+    # builtin_category = models.ForeignKey(Category, null=True, blank=True, on_delete=models.DO_NOTHING, default=int(BuiltinCategories.MISCELLANEOUS.value))
     name = models.CharField(max_length=200, null=True)
     date = models.DateField()
     payment_channel = models.CharField(max_length=50)

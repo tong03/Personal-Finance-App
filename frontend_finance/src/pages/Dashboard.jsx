@@ -55,6 +55,7 @@ const Dashboard = () => {
         `/financeAccess/get_transactions/?page=${pageState.page}&per_page=${pageState.pageSize}`
       );
       const data = res.data;
+      console.log(data);
       const formattedTransactions = data.transactions.map(
         (transaction, idx) => ({
           id: idx + 1 + (pageState.page - 1) * pageState.pageSize,
